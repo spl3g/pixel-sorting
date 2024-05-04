@@ -1,0 +1,4 @@
+* How to use
+#+begin_src shell
+./pixsort *input_image* *output_image*
+#+end_src
