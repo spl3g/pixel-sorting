@@ -126,7 +126,7 @@ sort_image :: proc(img: [^]u8, lum_mask: []u8, width, height: i32) -> [^]u8 {
 main :: proc() {
     width, height, channels: i32
     input := fmt.ctprintf(os.args[1])
-    output := fmt.ctprintf("%s_sorted.jpg", input)
+    output := fmt.ctprintf(os.args[2])
     /* input: cstring = "house.jpg" */
     /* output: cstring = "house_sorted.jpg" */
     img := stbi.load(input, &width, &height, &channels, 0)
