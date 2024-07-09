@@ -1,6 +1,6 @@
 # How to use
 ```sh
-./pixsort *input_image* *output_image*
+./pixsort *input_image* *output_image* *from threashold* *to threashold* *inverse threashold: true/false*
 ```
 # Some results
 ![image](https://github.com/spl3g/pixel-sorting/assets/58591608/9d0786ba-fd9e-47bd-b8f9-a693f3d43981)
