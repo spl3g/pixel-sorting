@@ -1,8 +1,12 @@
-package pixsort
+package main
 
 import "core:fmt"
 import "core:slice"
 import "core:math/rand"
+import "core:strings"
+import "core:strconv"
+import "core:os"
+import stbi "vendor:stb/image"
 
 Pixel :: struct {
     r, g, b: u8,
@@ -81,7 +85,7 @@ hsv_to_rgb :: proc(h: int, s, v: f32) -> (r, g, b: u8){
 }
 
 calculate_mask_lum :: proc(img: ^[]Pixel, width, height: i32, t_min, t_max: f32, inverted: bool) {
-    for pixel in img {
+    for &pixel in img {
 	lum := pixel.lum 
 	bw_color: bool
 	if inverted {
@@ -102,7 +106,7 @@ calculate_mask_lum :: proc(img: ^[]Pixel, width, height: i32, t_min, t_max: f32,
 }
 
 calculate_mask_hue :: proc(img: ^[]Pixel, width, height: i32, t_min, t_max: int, inverted: bool) {
-    for pixel in img {
+    for &pixel in img {
 	hue := pixel.h
 	bw_color: bool
 	if inverted {
@@ -148,32 +152,32 @@ compare_pixels :: proc(pixel1, pixel2: Pixel) -> bool {
     return pixel1.lum < pixel2.lum
 }
 
-generate_colors :: proc(
-    buf, img: ^[]Pixel,
-    pixel_offset: int,
-    h_range, s_range, v_range: f32,
-) {
-    buf_len := len(buf)
+/* generate_colors :: proc( */
+/*     buf, img: ^[]Pixel, */
+/*     pixel_offset, counter: int, */
+/*     h_range, s_range, v_range: f32, */
+/* ) { */
+/*     buf_len := len(buf) */
     
-    for i in 0..<buf_len {
-        h := cast(int)rand.float32_range(250, 360)
-        s := rand.float32_range(0.6, 1)
-        v := rand.float32_range(0, 1)
-        r, g, b := hsv_to_rgb(h, s, v)
-        buf[i] = Pixel {
-	r, g, b,
-	h, s, v,
-	get_lum(r, g, b),
-	true
-        }
-    }
+/*     for i in 0..<buf_len { */
+/*         h := cast(int)rand.float32_range(250, 360) */
+/*         s := rand.float32_range(0.6, 1) */
+/*         v := rand.float32_range(0, 1) */
+/*         r, g, b := hsv_to_rgb(h, s, v) */
+/*         buf[i] = Pixel { */
+/* 	r, g, b, */
+/* 	h, s, v, */
+/* 	get_lum(r, g, b), */
+/* 	true */
+/*         } */
+/*     } */
     
-    slice.sort_by(buf, compare_pixels)
-    for i in 0..<buf_len {
-        px := pixel_offset-counter + i
-        img[px] = buf[i]
-    }
-}
+/*     slice.sort_by(buf, compare_pixels) */
+/*     for i in 0..<buf_len { */
+/*         px := pixel_offset-counter + i */
+/*         img[px] = buf[i] */
+/*     } */
+/* } */
 sort_image :: proc(img: ^[]Pixel, width, height: i32) {
     counter: i32 = 0
     /* buf := make([]Pixel, width - 1) */
@@ -244,4 +248,33 @@ process :: proc(input: [^]u8, width, height: i32, t_min, t_max: f32, reverse: bo
     calculate_mask_lum(&img, width, height, tmin, tmax, reverse)
     sort_image(&img, width, height)
     return raw_data(convert_from_pixels(img, width, height))
+}
+
+help :: proc() {
+    fmt.printfln("%s [INPUT] [OUTPUT] [FROM] [TO] [INVERSE]", os.args[0])
+    fmt.println("  INPUT - a path to png/jpg image")
+    fmt.println("  OUTPUT - a name for a png image")
+    fmt.println("  FROM - float, from threashold")
+    fmt.println("  TO - float, to threashold")
+    fmt.println("  INVERSE - bool, inverse threashold")
+}
+
+main :: proc() {
+    width, height, channels: i32
+    if len(os.args) < 5 {
+	help()
+	os.exit(1)
+    }
+    input: cstring = strings.clone_to_cstring(os.args[1])
+    output: cstring = strings.clone_to_cstring(os.args[2])
+    from: f32 = strconv.parse_f32(os.args[3]) or_else 0.25
+    to: f32 = strconv.parse_f32(os.args[4]) or_else 0.75
+    inverse: bool = strconv.parse_bool(os.args[5]) or_else false
+    img := stbi.load(input, &width, &height, &channels, 0)
+    if img == nil {
+	fmt.eprintln("ERROR: could not read the image")
+	os.exit(1)
+    }
+    sorted := process(img, width, height, from, to, inverse)
+    stbi.write_jpg(output, width, height, 3, sorted, 100)
 }
