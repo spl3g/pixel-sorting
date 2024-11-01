@@ -251,22 +251,25 @@ process :: proc(input: [^]u8, width, height: i32, t_min, t_max: f32, reverse: bo
 }
 
 help :: proc() {
-    fmt.printfln("%s [INPUT] [OUTPUT] [FROM] [TO] [INVERSE]", os.args[0])
-    fmt.println("  INPUT - a path to png/jpg image")
-    fmt.println("  OUTPUT - a name for a png image")
-    fmt.println("  FROM - float, from threashold")
-    fmt.println("  TO - float, to threashold")
-    fmt.println("  INVERSE - bool, inverse threashold")
+    fmt.printfln("%s [INPUT] [OUTPUT] *flags*", os.args[0])
+    fmt.println("optional flags:")
+    fmt.println("  -f: float, from threashold")
+    fmt.println("  -t: float, to threashold")
+    fmt.println("  -i: bool, inverse threashold")
 }
-find_flag :: proc(flags: [dynamic]int, target: string) -> (string, bool) {
+find_flag :: proc(flags: [dynamic]int, target: string, has_value: bool = true) -> (string, bool) {
     for i in flags {
         arg := os.args[i]
         if arg == target {
-            if len(os.args) < i+1 || slice.contains(flags[:], i+1) {
-                fmt.printfln("No value provided to %s", arg)
-                os.exit(1)
+            if has_value {
+                if (len(os.args) < i+1 || slice.contains(flags[:], i+1)) {
+                    fmt.printfln("No value provided to %s", arg)
+                    os.exit(1)
+                }
+                return os.args[i+1], true
+            } else {
+                return "", true
             }
-            return os.args[i+1], true
         }
     }
     return "", true
@@ -290,11 +293,12 @@ separate_args :: proc() -> ([dynamic]int, [dynamic]int) {
 
 main :: proc() {
     width, height, channels: i32
-    if len(os.args) < 2 {
-	    help()
-	    os.exit(1)
-    }
     flags, args := separate_args()
+    
+    if _, ok := find_flag(flags, "-h", false); ok {
+        help()
+        os.exit(0)
+    }
     
     from: f32 =  0.25
     if flag, ok := find_flag(flags, "-f"); ok {
@@ -311,13 +315,18 @@ main :: proc() {
         inverse, _ = strconv.parse_bool(flag)
     }
 
+    if len(args) < 3 {
+	    help()
+	    os.exit(1)
+    }
+    
     input: cstring = strings.clone_to_cstring(os.args[args[1]])
     output: cstring = strings.clone_to_cstring(os.args[args[2]])
 
     img := stbi.load(input, &width, &height, &channels, 0)
     if img == nil {
-	fmt.eprintln("ERROR: could not read the image")
-	os.exit(1)
+	    fmt.eprintln("ERROR: could not read the image")
+	    os.exit(1)
     }
     sorted := process(img, width, height, from, to, inverse)
     stbi.write_jpg(output, width, height, 3, sorted, 100)
