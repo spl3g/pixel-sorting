@@ -258,18 +258,62 @@ help :: proc() {
     fmt.println("  TO - float, to threashold")
     fmt.println("  INVERSE - bool, inverse threashold")
 }
+find_flag :: proc(flags: [dynamic]int, target: string) -> (string, bool) {
+    for i in flags {
+        arg := os.args[i]
+        if arg == target {
+            if len(os.args) < i+1 || slice.contains(flags[:], i+1) {
+                fmt.printfln("No value provided to %s", arg)
+                os.exit(1)
+            }
+            return os.args[i+1], true
+        }
+    }
+    return "", true
+}
+
+separate_args :: proc() -> ([dynamic]int, [dynamic]int) {
+    flags: [dynamic]int
+    args: [dynamic]int
+    
+    for arg, i in os.args {
+        if strings.has_prefix(arg, "-") {
+            append(&flags, i)
+        } else if len(flags) > 0 && flags[len(flags)-1] == i-1 {
+            continue
+        } else {
+            append(&args, i)
+        }
+    }
+    return flags, args
+}
 
 main :: proc() {
     width, height, channels: i32
-    if len(os.args) < 5 {
-	help()
-	os.exit(1)
+    if len(os.args) < 2 {
+	    help()
+	    os.exit(1)
     }
-    input: cstring = strings.clone_to_cstring(os.args[1])
-    output: cstring = strings.clone_to_cstring(os.args[2])
-    from: f32 = strconv.parse_f32(os.args[3]) or_else 0.25
-    to: f32 = strconv.parse_f32(os.args[4]) or_else 0.75
-    inverse: bool = strconv.parse_bool(os.args[5]) or_else false
+    flags, args := separate_args()
+    
+    from: f32 =  0.25
+    if flag, ok := find_flag(flags, "-f"); ok {
+        from, _ = strconv.parse_f32(flag)
+    }
+    
+    to: f32 = 0.75
+    if flag, ok := find_flag(flags, "-t"); ok {
+        to, _ = strconv.parse_f32(flag)
+    }
+    
+    inverse: bool = false
+    if flag, ok := find_flag(flags, "-i"); ok {
+        inverse, _ = strconv.parse_bool(flag)
+    }
+
+    input: cstring = strings.clone_to_cstring(os.args[args[1]])
+    output: cstring = strings.clone_to_cstring(os.args[args[2]])
+
     img := stbi.load(input, &width, &height, &channels, 0)
     if img == nil {
 	fmt.eprintln("ERROR: could not read the image")
